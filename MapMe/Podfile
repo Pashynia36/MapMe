@@ -1,0 +1,4 @@
+target 'MapMe' do
+  use_frameworks!
+  pod 'GoogleMaps'
+end
