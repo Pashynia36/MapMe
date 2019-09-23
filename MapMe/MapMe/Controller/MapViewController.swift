@@ -10,7 +10,9 @@ import UIKit
 import GoogleMaps
 
 /// Represents main map screen
-class MapViewController: UIViewController {
+final class MapViewController: UIViewController {
+
+	private let locationManager = CLLocationManager()
 
 	/// GoogleMap view
 	private lazy var mapView: GMSMapView = {
@@ -39,6 +41,13 @@ class MapViewController: UIViewController {
         super.viewDidLoad()
 
 		setupUI()
+
+		locationManager.delegate = self
+		locationManager.requestWhenInUseAuthorization()
+
+		searchBar.delegate = self
+
+		mapView.delegate = self
     }
 
 	private func setupUI() {
@@ -58,5 +67,56 @@ class MapViewController: UIViewController {
 			searchBar.rightAnchor.constraint(equalTo: view.rightAnchor),
 			searchBar.heightAnchor.constraint(equalToConstant: 44)
 		])
+	}
+}
+
+// MARK: - CLLocationManagerDelegate
+
+extension MapViewController: CLLocationManagerDelegate {
+	func locationManager(_ manager: CLLocationManager,
+						 didChangeAuthorization status: CLAuthorizationStatus) {
+		guard status == .authorizedWhenInUse else { return }
+
+		locationManager.startUpdatingLocation()
+
+		mapView.isMyLocationEnabled = true
+		mapView.settings.myLocationButton = true
+	}
+
+	func locationManager(_ manager: CLLocationManager,
+						 didUpdateLocations locations: [CLLocation]) {
+		guard let location = locations.last else { return }
+
+		mapView.camera = GMSCameraPosition(target: location.coordinate,
+										   zoom: 15,
+										   bearing: 0,
+										   viewingAngle: 0)
+
+		locationManager.stopUpdatingLocation()
+	}
+}
+
+// MARK: - UISearchBarDelegate
+
+extension MapViewController: UISearchBarDelegate {
+
+	func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
+		guard let city = searchBar.text else { return }
+		CLGeocoder().geocodeAddressString(city) { placemark, error in
+			guard error == nil else { return }
+			guard let location = placemark?.first?.location else { return }
+			self.mapView.camera = GMSCameraPosition(target: location.coordinate,
+													zoom: 10,
+													bearing: 0,
+													viewingAngle: 0)
+		}
+	}
+}
+
+// MARK: - GMSMapViewDelegate
+
+extension MapViewController: GMSMapViewDelegate {
+	func mapView(_ mapView: GMSMapView, willMove gesture: Bool) {
+		view.endEditing(true)
 	}
 }
